@@ -1,0 +1,3 @@
+ALTER TABLE users ALTER COLUMN username SET NOT NULL;
+ALTER TABLE users ADD PRIMARY KEY (id);
+CREATE UNIQUE INDEX ON users (username);
