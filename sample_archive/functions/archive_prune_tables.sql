@@ -59,9 +59,13 @@ BEGIN
       analyze_counter := 0;
 
       WHILE num_rows_to_archive > archive_query_status LOOP
+        
+	select clock_timestamp() into batch_start_time;
+
         EXECUTE str_replace_archive_query;
 	GET DIAGNOSTICS archive_query_count = ROW_COUNT;
 	RAISE NOTICE 'Table %.%: Archived % of %',tables_to_archive.s, tables_to_archive.n, archive_query_status, num_rows_to_archive;
+
 	archive_query_status := archive_query_status + archive_query_count;
 	analyze_counter := analyze_counter + archive_query_count;
 
@@ -71,11 +75,17 @@ BEGIN
 	  analyze_counter := 0;
 	end if;
 
+        select clock_timestamp() into batch_end_time;
+        EXECUTE format('INSERT INTO  dba.archive_logs (table_archive_data_id, batch_start_time, batch_end_time, rows_archived) VALUES (%1$s, ''%2$s'',''%3$s'',%4$s);', tables_to_archive.tad_id, batch_start_time, batch_end_time, archive_query_count);
+
 	commit;
+
+
 
 	if tables_to_archive.archive_interval_sleep > 0 then 
 	  EXECUTE format('select pg_sleep(%s);',tables_to_archive.archive_interval_sleep);
 	end if;
+
       END LOOP; -- ends loop for archive
 
       RAISE NOTICE 'End of archive for this table, running analyze on %.%',tables_to_archive.s, tables_to_archive.n;

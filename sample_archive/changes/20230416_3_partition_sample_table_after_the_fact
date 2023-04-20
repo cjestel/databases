@@ -1,0 +1,72 @@
+-- Below we will change the table to utilize partitions in a live way and then will set up pg_partman
+-- to manage future paritition creation
+-- https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/PostgreSQL_Partitions.html
+
+-- for a more hands on approach, check out the youtube video I learned this strategy from:
+-- https://www.youtube.com/watch?v=edQZauVU-ws
+
+-- make sure to check max/min values for date range to ensure there is no data out of bounds and that there are no null values.
+
+-- if running manually, you will want to do this in a transaction. My deployment tool wraps
+-- things in a transaction for me unless transactional boundaries are found in the file it is deploying
+
+-- another helpful link on postgres partitioning
+
+begin;
+alter table sample_table rename to sample_table_legacy;
+
+alter index sample_table_pkey rename to sample_table_legacy_pkey;
+alter index sample_table_created_on_idx rename to sample_table_legacy_created_on_idx;
+alter index sample_table_slug_address_idx rename to sample_table_legacy_slug_address_idx;
+
+
+CREATE TABLE sample_table (
+    id bigint NOT NULL DEFAULT nextval('sample_table_id_seq'::regclass) ,
+    slug_address character varying(50) NOT NULL,
+    created_at timestamp with time zone NOT NULL,
+    primary key (id, created_at)
+)
+partition by range(created_at);
+
+create index sample_table_slug_address_idx on sample_table(slug_address);
+create index sample_table_created_on_idx on sample_table(created_at);
+
+
+-- create partition for new data. Use a future day/month for the start/end values that is not in the current data set.
+create table sample_table_p20230501
+partition of sample_table
+for values from ('2023-05-01') to ('2023-06-01');
+
+
+do $$
+declare earliest_date date;
+declare latest_date date;
+
+select min(created_at) into earliest_date from sample_table_legacy;
+latest := '2023-05-01'::date
+
+-- this is the hacky part. We are validating that the data is good on our own and ensuring that the database doesn't scan all the data.
+alter sample_table_legacy
+add constraint sample_table_created_at
+  check (created_at >= earliest and created_at < latest
+not valid;
+
+update pg_constraint set convalidated = true where conname = 'sample_table_legacy_created_at;
+
+alter table sample_table
+attach partition sample_table_legacy
+for values from (earliest) to (latest);
+
+
+end;
+$$ language plpgsql;
+commit;
+
+
+
+
+
+
+
+
+
