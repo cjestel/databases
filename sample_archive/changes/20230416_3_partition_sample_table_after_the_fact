@@ -11,6 +11,13 @@
 -- things in a transaction for me unless transactional boundaries are found in the file it is deploying
 
 -- another helpful link on postgres partitioning
+-- https://alexey-soshin.medium.com/dealing-with-partitions-in-postgres-11-fa9cc5ecf466
+
+
+
+-- start by adding a unique index on your primary key and range partition field, do this ahead of time.
+create unique index concurrently if not exists sample_table_future_pk on sample_table(id, created_at);
+
 
 begin;
 alter table sample_table rename to sample_table_legacy;
@@ -18,13 +25,15 @@ alter table sample_table rename to sample_table_legacy;
 alter index sample_table_pkey rename to sample_table_legacy_pkey;
 alter index sample_table_created_on_idx rename to sample_table_legacy_created_on_idx;
 alter index sample_table_slug_address_idx rename to sample_table_legacy_slug_address_idx;
-
+alter table sample_table_legacy drop constraint sample_table_pkey;
+alter index sample_table_future_pk rename to sample_table_legacy_future_pk;
+alter table sample_table_legacy add constraint sample_table_legacy_pkey primary key using index sample_table_future_pk;
 
 CREATE TABLE sample_table (
-    id bigint NOT NULL DEFAULT nextval('sample_table_id_seq'::regclass) ,
-    slug_address character varying(50) NOT NULL,
-    created_at timestamp with time zone NOT NULL,
-    primary key (id, created_at)
+  id bigint NOT NULL DEFAULT nextval('sample_table_id_seq'::regclass) ,
+  slug_address character varying(50) NOT NULL,
+  created_at timestamp with time zone NOT NULL,
+  primary key (id, created_at)
 )
 partition by range(created_at);
 
@@ -39,23 +48,34 @@ for values from ('2023-05-01') to ('2023-06-01');
 
 
 do $$
-declare earliest_date date;
-declare latest_date date;
+declare 
+  earliest_date date;
+  latest_date date;
+  alter_table_query text;
+  partition_table_query text;
+begin
+  select min(created_at) into earliest_date from sample_table_legacy;
+  latest_date := '2023-05-01'::date;
 
-select min(created_at) into earliest_date from sample_table_legacy;
-latest := '2023-05-01'::date
+  -- this is the hacky part. We are validating that the data is good on our own and ensuring that the database doesn't scan all the data.
+  alter_table_query := format ('
+    alter table sample_table_legacy
+    add constraint sample_table_created_at
+      check (created_at >= ''%1$s'' and created_at <'' %2$s'')
+      not valid;
+  ',earliest_date,latest_date);
 
--- this is the hacky part. We are validating that the data is good on our own and ensuring that the database doesn't scan all the data.
-alter sample_table_legacy
-add constraint sample_table_created_at
-  check (created_at >= earliest and created_at < latest
-not valid;
+  execute alter_table_query;
 
-update pg_constraint set convalidated = true where conname = 'sample_table_legacy_created_at;
+  update pg_constraint set convalidated = true where conname = 'sample_table_legacy_created_at';
 
-alter table sample_table
-attach partition sample_table_legacy
-for values from (earliest) to (latest);
+  partition_table_query := format('
+  alter table sample_table
+    attach partition sample_table_legacy
+    for values from (''%1$s'') to (''%2$s'') 
+  ',earliest_date,latest_date);
+
+  execute partition_table_query;
 
 
 end;

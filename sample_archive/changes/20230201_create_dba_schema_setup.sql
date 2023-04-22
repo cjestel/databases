@@ -126,7 +126,7 @@ create index archive_logs_created_at_idx on dba.archive_logs(created_at);
 
 
 --
--- move below here to a new file once done testing as this is real data, not supporting or meta data
+-- move below here to a new file once done testing as this is real data, it not supporting or meta data
 --
 
 -- populate archive data with table name and supporting records

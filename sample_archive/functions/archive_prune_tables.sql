@@ -82,6 +82,7 @@ BEGIN
 
 
 
+
 	if tables_to_archive.archive_interval_sleep > 0 then 
 	  EXECUTE format('select pg_sleep(%s);',tables_to_archive.archive_interval_sleep);
 	end if;
