@@ -1,4 +1,4 @@
-CREATE OR REPLACE PROCEDURE dba.archive_prune_tables()
+CREATE OR REPLACE PROCEDURE dba.archive_prune_tables(IN what_tables_to_archive varchar(4096) DEFAULT '%')
 LANGUAGE plpgsql
 AS $$
 
@@ -27,6 +27,7 @@ BEGIN
       FROM dba.table_archive_data
       LEFT JOIN dba.archive_interval_type on archive_interval_type_id = archive_interval_type.id
       WHERE archive_type_id = 2
+      AND concat(table_schema,'.',table_name) in (what_tables_to_archive)
       ORDER BY run_order asc
   LOOP
 
