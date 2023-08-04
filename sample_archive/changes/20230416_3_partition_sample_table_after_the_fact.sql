@@ -27,7 +27,7 @@ alter index sample_table_created_on_idx rename to sample_table_legacy_created_on
 alter index sample_table_slug_address_idx rename to sample_table_legacy_slug_address_idx;
 alter table sample_table_legacy drop constraint sample_table_legacy_pkey;
 alter index sample_table_future_pk rename to sample_table_legacy_future_pk;
-alter table sample_table_legacy add constraint sample_table_legacy_pkey primary key using index sample_table_future_legacy_pk;
+alter table sample_table_legacy add constraint sample_table_legacy_pkey primary key using index sample_table_legacy_future_pk;
 
 CREATE TABLE sample_table (
   id bigint NOT NULL DEFAULT nextval('sample_table_id_seq'::regclass) ,
