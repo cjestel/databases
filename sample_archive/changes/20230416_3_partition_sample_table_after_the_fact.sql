@@ -1,3 +1,4 @@
+commit;
 -- Below we will change the table to utilize partitions in a live way and then will set up pg_partman
 -- to manage future paritition creation
 -- https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/PostgreSQL_Partitions.html
