@@ -41,10 +41,6 @@ methods you will need to update accordingly.
 DO
 $do$
 DECLARE
-  etl_user_wr      text := '<%= @_etl_user_wr -%>';
-  etl_user_wr_pw   text := '<%= @_etl_user_wr_pw -%>';
-  etl_user_ro      text := '<%= @_etl_user_ro -%>';
-  etl_user_ro_pw   text := '<%= @_etl_user_ro_pw -%>';
   user_name_wr     text := '<%= @_username_wr -%>';
   user_password_wr text := '<%= @_password_wr -%>';
   user_name_ro     text := '<%= @_username_ro -%>';
